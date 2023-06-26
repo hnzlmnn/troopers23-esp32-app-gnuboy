@@ -143,14 +143,15 @@ esp_err_t nvs_get_str_fixed(nvs_handle_t handle, const char* key, char* target, 
 
 bool wait_for_button() {
     while (1) {
-        rp2040_input_message_t message = {0};
+        keyboard_input_message_t message = {0};
         if (xQueueReceive(button_queue, &message, portMAX_DELAY) == pdTRUE) {
             if (message.state) {
                 switch (message.input) {
-                    case RP2040_INPUT_BUTTON_BACK:
-                    case RP2040_INPUT_BUTTON_HOME:
+                    case BUTTON_BACK:
+                    //case BUTTON_HOME:
+                    case KEY_SHIELD:
                         return false;
-                    case RP2040_INPUT_BUTTON_ACCEPT:
+                    case BUTTON_ACCEPT:
                         return true;
                     default:
                         break;
@@ -658,6 +659,7 @@ typedef enum action {
 static size_t menu_pos = 0;
 
 menu_action_t show_menu() {
+    printf("show_menu()\n");
     menu_t* menu = menu_alloc("GNUBOY Gameboy emulator", 34, 18);
     menu->fgColor           = 0xFF000000;
     menu->bgColor           = 0xFFFFFFFF;
@@ -717,38 +719,40 @@ menu_action_t show_menu() {
             disp_flush();
             render = false;
         }
-        rp2040_input_message_t message = {0};
+        keyboard_input_message_t message = {0};
         if (xQueueReceive(button_queue, &message, portMAX_DELAY) == pdTRUE) {
+            printf("show_menu() keypress (state=%d): %d\n", message.state, message.input);
             if (message.state) {
                 switch (message.input) {
-                    case RP2040_INPUT_JOYSTICK_DOWN:
+                    case JOYSTICK_DOWN:
                         menu_navigate_next_row(menu);
                         render = true;
                         break;
-                    case RP2040_INPUT_JOYSTICK_UP:
+                    case JOYSTICK_UP:
                         menu_navigate_previous_row(menu);
                         render = true;
                         break;
-                    case RP2040_INPUT_JOYSTICK_LEFT:
+                    case JOYSTICK_LEFT:
                         menu_navigate_previous(menu);
                         render = true;
                         break;
-                    case RP2040_INPUT_JOYSTICK_RIGHT:
+                    case JOYSTICK_RIGHT:
                         menu_navigate_next(menu);
                         render = true;
                         break;
-                    case RP2040_INPUT_BUTTON_HOME:
+                    //case BUTTON_HOME:
+                    case KEY_SHIELD:
                         action = ACTION_EXIT;
                         quit = true;
                         break;
-                    case RP2040_INPUT_BUTTON_ACCEPT:
-                    case RP2040_INPUT_JOYSTICK_PRESS:
-                    case RP2040_INPUT_BUTTON_SELECT:
-                    case RP2040_INPUT_BUTTON_START:
+                    case BUTTON_ACCEPT:
+                    case BUTTON_SELECT:
+                    case BUTTON_START:
                         action = (menu_action_t) menu_get_callback_args(menu, menu_get_position(menu));
                         quit = true;
                         break;
-                    case RP2040_INPUT_BUTTON_MENU:
+                    //case BUTTON_MENU:
+                    case KEY_M:
                         action = ACTION_RUN;
                         quit = true;
                         break;
@@ -875,26 +879,28 @@ bool file_browser(const char* initial_path, char* selected_file) {
         file_browser_menu_args_t* menuArgs = NULL;
 
         while (!exit) {
-            rp2040_input_message_t message = {0};
+            keyboard_input_message_t message = {0};
             if (xQueueReceive(button_queue, &message, 16 / portTICK_PERIOD_MS) == pdTRUE) {
                 if (message.state) {
                     switch (message.input) {
-                        case RP2040_INPUT_JOYSTICK_DOWN:
+                        case JOYSTICK_DOWN:
                             menu_navigate_next(menu);
                             render = true;
                             break;
-                        case RP2040_INPUT_JOYSTICK_UP:
+                        case JOYSTICK_UP:
                             menu_navigate_previous(menu);
                             render = true;
                             break;
-                        case RP2040_INPUT_BUTTON_BACK:
+                        case BUTTON_BACK:
                             menuArgs = pd_args;
                             break;
-                        case RP2040_INPUT_BUTTON_ACCEPT:
-                        case RP2040_INPUT_JOYSTICK_PRESS:
+                        case BUTTON_ACCEPT:
+                        //case JOYSTICK_PRESS:
+                        case BUTTON_SELECT:
                             menuArgs = menu_get_callback_args(menu, menu_get_position(menu));
                             break;
-                        case RP2040_INPUT_BUTTON_HOME:
+                        //case BUTTON_HOME:
+                        case KEY_SHIELD:
                             exit = true;
                             break;
                         default:
@@ -1028,7 +1034,7 @@ void game_loop() {
           totalElapsedTime = 0;
         }*/
         
-        rp2040_input_message_t buttonMessage = {0};
+        keyboard_input_message_t buttonMessage = {0};
         BaseType_t queueResult;
         do {
             queueResult = xQueueReceive(button_queue, &buttonMessage, 0);
@@ -1036,31 +1042,32 @@ void game_loop() {
                 uint8_t button = buttonMessage.input;
                 bool value = buttonMessage.state;
                 switch(button) {
-                    case RP2040_INPUT_JOYSTICK_DOWN:
+                    case JOYSTICK_DOWN:
                         pad_set(PAD_DOWN, value);
                         break;
-                    case RP2040_INPUT_JOYSTICK_UP:
+                    case JOYSTICK_UP:
                         pad_set(PAD_UP, value);
                         break;
-                    case RP2040_INPUT_JOYSTICK_LEFT:
+                    case JOYSTICK_LEFT:
                         pad_set(PAD_LEFT, value);
                         break;
-                    case RP2040_INPUT_JOYSTICK_RIGHT:
+                    case JOYSTICK_RIGHT:
                         pad_set(PAD_RIGHT, value);
                         break;
-                    case RP2040_INPUT_BUTTON_ACCEPT:
+                    case BUTTON_ACCEPT:
                         pad_set(PAD_A, value);
                         break;
-                    case RP2040_INPUT_BUTTON_BACK:
+                    case BUTTON_BACK:
                         pad_set(PAD_B, value);
                         break;
-                    case RP2040_INPUT_BUTTON_START:
+                    case BUTTON_START:
                         pad_set(PAD_START, value);
                         break;
-                    case RP2040_INPUT_BUTTON_SELECT:
+                    case BUTTON_SELECT:
                         pad_set(PAD_SELECT, value);
                         break;
-                    case RP2040_INPUT_BUTTON_HOME:
+                    //case BUTTON_HOME:
+                    case KEY_SHIELD:
                         if (value) {
                             audio_stop();
                             save_sram();
@@ -1068,7 +1075,8 @@ void game_loop() {
                             exit_to_launcher();
                         }
                         break;
-                    case RP2040_INPUT_BUTTON_MENU:
+                    //case BUTTON_MENU:
+                    case KEY_M:
                         if (value) {
                             quit = true;
                         }
@@ -1081,20 +1089,50 @@ void game_loop() {
 }
 
 void app_main(void) {
-    bsp_init();
+    esp_err_t res;
+    //audio_init();
+
+    if (bsp_init() != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to initialize basic board support functions");
+        esp_restart();
+    }
+
+    /* Initialize the LEDs */
+    ws2812_init(GPIO_LED_DATA, 150);
+    const uint8_t led_off[15] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    ws2812_send_data(led_off, sizeof(led_off));
+
+    /* Turning the backlight on */
+    gpio_config_t io_conf = {
+        .intr_type    = GPIO_INTR_DISABLE,
+        .mode         = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = 1LL << GPIO_LCD_BL,
+        .pull_down_en = 0,
+        .pull_up_en   = 0,
+    };
+    res = gpio_config(&io_conf);
+    if (res != ESP_OK) {
+        ESP_LOGE(TAG, "LCD Backlight set_direction failed: %d", res);
+        esp_restart();
+    }
+    res = gpio_set_level(GPIO_LCD_BL, true);
+    if (res != ESP_OK) {
+        ESP_LOGE(TAG, "LCD Backlight set_level failed: %d", res);
+        esp_restart();
+    }
+
     ili9341 = get_ili9341();
     pax_buf_init(&pax_buffer, NULL, 320, 240, PAX_BUF_16_565RGB);
 
     pax_decode_png_buf(&border, (void*) border_png_start, border_png_end - border_png_start, PAX_BUF_16_565RGB, 0);
 
-    display_state("Initializing...", 0);
+    display_state("Initializing...", 1000);
     
-    bsp_rp2040_init();
-    button_queue = get_rp2040()->queue;
+    //bsp_rp2040_init();
+    //button_queue = get_rp2040()->queue;
+    button_queue = get_keyboard()->queue;
 
     nvs_flash_init();
-    
-    esp_err_t res;
     
     displayBuffer[0] = heap_caps_malloc(160 * 144 * 2, MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
     displayBuffer[1] = heap_caps_malloc(160 * 144 * 2, MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
@@ -1141,15 +1179,19 @@ void app_main(void) {
     bool sdcard_mounted = (mount_sdcard_filesystem() == ESP_OK);
     if (sdcard_mounted) {
         ESP_LOGI(TAG, "SD card filesystem mounted");
-        /* LED power is on: start LED driver and turn LEDs off */
-        ws2812_init(GPIO_LED_DATA);
-        const uint8_t led_off[15] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        ws2812_send_data(led_off, sizeof(led_off));
+        ///* LED power is on: start LED driver and turn LEDs off */
+        //ws2812_init(GPIO_LED_DATA);
+        //const uint8_t led_off[15] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        //ws2812_send_data(led_off, sizeof(led_off));
     } else {
-        gpio_set_level(GPIO_SD_PWR, 0);  // Disable power to LEDs and SD card
+        ESP_LOGE(TAG, "SD card filesystem not mounted!");
+        gpio_set_level(0, 0);  // Disable power to LEDs and SD card
     }
     
-    audio_init(AUDIO_SAMPLE_RATE);
+    // TODO: dmantz: after calling audio_init() the display stops working
+    //display_state("main before audio_init()", 1000);
+    //audio_init(AUDIO_SAMPLE_RATE);
+    //display_state("main after audio_init()", 1000);
 
     vidQueue = xQueueCreate(1, sizeof(uint16_t*));
     xTaskCreatePinnedToCore(&videoTask, "videoTask", 4096, NULL, 5, NULL, 1);
@@ -1197,16 +1239,19 @@ void app_main(void) {
     printf("ROM filename: '%s'\n", rom_filename);
 
     if (rom_filename[0] != '\0') {
+        printf("Loading Rom...\n");
         load_rom(false, false);
         if (!load_state()) {
             load_sram();
         }
+        printf("Starting Game Loop ...\n");
         game_loop();
     }
 
     while(true) {
         audio_stop();
         menu_action_t action = show_menu();
+        printf("while loop, action = %d\n", action);
         switch(action) {
             case ACTION_EXIT:
                 if (rom_filename[0] != '\0') {

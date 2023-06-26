@@ -37,3 +37,15 @@
 [submodule "esp32-component-pca9555"]
 	path = esp32-component-pca9555
 	url = https://github.com/badgeteam/esp32-component-pca9555.git
+[submodule "components/i2c-pca9555"]
+	path = components/i2c-pca9555
+	url = https://github.com/badgeteam/esp32-component-pca9555.git
+[submodule "components/i2c-ktd2052"]
+	path = components/i2c-ktd2052
+	url = https://github.com/hnzlmnn/esp32-component-ktd2052.git
+[submodule "components/i2c-controller"]
+	path = components/i2c-controller
+	url = https://github.com/hnzlmnn/esp32-component-controller.git
+[submodule "components/troopers23-efuse"]
+	path = components/troopers23-efuse
+	url = https://github.com/badgeteam/troopers23-efuse.git

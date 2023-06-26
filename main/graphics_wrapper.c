@@ -4,7 +4,6 @@
 
 #include "hardware.h"
 #include "pax_keyboard.h"
-#include "rp2040.h"
 
 void render_header(pax_buf_t* pax_buffer, float position_x, float position_y, float width, float height, float text_height, pax_col_t text_color,
                    pax_col_t bg_color, pax_buf_t* icon, const char* label) {
@@ -87,68 +86,70 @@ bool keyboard(xQueueHandle buttonQueue, pax_buf_t* pax_buffer, ILI9341* ili9341,
 
     bool running = true;
     while (running) {
-        rp2040_input_message_t buttonMessage = {0};
+        keyboard_input_message_t buttonMessage = {0};
         if (xQueueReceive(buttonQueue, &buttonMessage, 16 / portTICK_PERIOD_MS) == pdTRUE) {
             uint8_t pin   = buttonMessage.input;
             bool    value = buttonMessage.state;
             switch (pin) {
-                case RP2040_INPUT_JOYSTICK_DOWN:
+                case JOYSTICK_DOWN:
                     if (value) {
                         pkb_press(&kb_ctx, PKB_DOWN);
                     } else {
                         pkb_release(&kb_ctx, PKB_DOWN);
                     }
                     break;
-                case RP2040_INPUT_JOYSTICK_UP:
+                case JOYSTICK_UP:
                     if (value) {
                         pkb_press(&kb_ctx, PKB_UP);
                     } else {
                         pkb_release(&kb_ctx, PKB_UP);
                     }
                     break;
-                case RP2040_INPUT_JOYSTICK_LEFT:
+                case JOYSTICK_LEFT:
                     if (value) {
                         pkb_press(&kb_ctx, PKB_LEFT);
                     } else {
                         pkb_release(&kb_ctx, PKB_LEFT);
                     }
                     break;
-                case RP2040_INPUT_JOYSTICK_RIGHT:
+                case JOYSTICK_RIGHT:
                     if (value) {
                         pkb_press(&kb_ctx, PKB_RIGHT);
                     } else {
                         pkb_release(&kb_ctx, PKB_RIGHT);
                     }
                     break;
-                case RP2040_INPUT_JOYSTICK_PRESS:
+                //case JOYSTICK_PRESS:
+                case KEY_SHIFT:
                     if (value) {
                         pkb_press(&kb_ctx, PKB_SHIFT);
                     } else {
                         pkb_release(&kb_ctx, PKB_SHIFT);
                     }
                     break;
-                case RP2040_INPUT_BUTTON_ACCEPT:
+                case BUTTON_ACCEPT:
                     if (value) {
                         pkb_press(&kb_ctx, PKB_CHARSELECT);
                     } else {
                         pkb_release(&kb_ctx, PKB_CHARSELECT);
                     }
                     break;
-                case RP2040_INPUT_BUTTON_BACK:
+                case BUTTON_BACK:
                     if (value) {
                         pkb_press(&kb_ctx, PKB_DELETE_BEFORE);
                     } else {
                         pkb_release(&kb_ctx, PKB_DELETE_BEFORE);
                     }
                     break;
-                case RP2040_INPUT_BUTTON_SELECT:
+                case BUTTON_SELECT:
                     if (value) {
                         pkb_press(&kb_ctx, PKB_MODESELECT);
                     } else {
                         pkb_release(&kb_ctx, PKB_MODESELECT);
                     }
                     break;
-                case RP2040_INPUT_BUTTON_HOME:
+                //case BUTTON_HOME:
+                case KEY_SHIELD:
                     if (value) {
                         running = false;
                     }
