@@ -4,3 +4,4 @@ sdkconfig.old
 *.bak
 *.old
 .vscode
+cmake-build-debug

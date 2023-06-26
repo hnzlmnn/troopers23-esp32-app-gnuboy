@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/appfs" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/bus-i2c" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/i2c-bme680" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/i2c-bno055" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/mch2022-bsp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/mch2022-rp2040" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/pax-codecs" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/pax-codecs/libspng" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/pax-graphics" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/pax-keyboard" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/sdcard" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/spi-ice40" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/spi-ili9341" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/components/ws2812" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/asio/asio" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/bootloader/subproject/components/micro-ecc/micro-ecc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/bt/controller/lib_esp32" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/bt/controller/lib_esp32c3_family" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/bt/host/nimble/nimble" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/cbor/tinycbor" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/cmock/CMock" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/coap/libcoap" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/coap/libcoap/ext/tinydtls" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/esp_phy/lib" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/esp_wifi/lib" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/esptool_py/esptool" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/expat/expat" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/ieee802154/lib" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/json/cJSON" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/libsodium/libsodium" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/lwip/lwip" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/mbedtls/mbedtls" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/mqtt/esp-mqtt" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/nghttp/nghttp2" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/nghttp/nghttp2/third-party/mruby" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/nghttp/nghttp2/third-party/neverbleed" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/openthread/lib" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/openthread/openthread" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/protobuf-c/protobuf-c" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/spiffs/spiffs" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/tinyusb/tinyusb" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/components/unity/unity" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/examples/build_system/cmake/import_lib/main/lib/tinyxml2" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/esp-idf/examples/peripherals/secure_element/atecc608_ecdsa/components/esp-cryptoauthlib" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tools" vcs="Git" />
+  </component>
+</project>
