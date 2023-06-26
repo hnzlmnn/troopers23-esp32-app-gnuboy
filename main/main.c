@@ -717,7 +717,7 @@ menu_action_t show_menu() {
             const pax_font_t* font = pax_font_saira_regular;
             pax_background(&pax_buffer, 0xFFFFFF);
             menu_render_grid(&pax_buffer, menu, 0, 0, 320, 220);//160);
-            pax_draw_text(&pax_buffer, 0xFF491d88, font, 18, 5, 240 - 18, "🅰 select 🅷 exit");
+            pax_draw_text(&pax_buffer, 0xFF491d88, font, 18, 5, 240 - 18, "🅰 select  🅱 exit");
             disp_flush();
             render = false;
         }
@@ -743,7 +743,7 @@ menu_action_t show_menu() {
                         render = true;
                         break;
                     //case BUTTON_HOME:
-                    case KEY_SHIELD:
+                    case BUTTON_BACK:
                         action = ACTION_EXIT;
                         quit = true;
                         break;
