@@ -1128,6 +1128,12 @@ void app_main(void) {
 
     display_state("Initializing...", 1000);
     
+
+    /* Enable the controller */
+    // TODO: Remove this
+    Controller *controller = get_controller();
+    controller_enable(controller);
+
     //bsp_rp2040_init();
     //button_queue = get_rp2040()->queue;
     button_queue = get_keyboard()->queue;
@@ -1188,10 +1194,7 @@ void app_main(void) {
         gpio_set_level(0, 0);  // Disable power to LEDs and SD card
     }
     
-    // TODO: dmantz: after calling audio_init() the display stops working
-    //display_state("main before audio_init()", 1000);
-    //audio_init(AUDIO_SAMPLE_RATE);
-    //display_state("main after audio_init()", 1000);
+    audio_init(AUDIO_SAMPLE_RATE);
 
     vidQueue = xQueueCreate(1, sizeof(uint16_t*));
     xTaskCreatePinnedToCore(&videoTask, "videoTask", 4096, NULL, 5, NULL, 1);

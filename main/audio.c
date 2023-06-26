@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "hardware.h"
 
 #include "freertos/FreeRTOS.h"
 #include "esp_system.h"
@@ -48,36 +49,23 @@ int audio_volume_decrease() {
     return level;
 }
 
-void audio_init(int sample_rate) {
-    printf("%s: sample_rate=%d\n", __func__, sample_rate);
+void audio_init(int i2s_num) {
+    i2s_config_t i2s_config = {.mode                 = I2S_MODE_MASTER | I2S_MODE_TX,
+                               .sample_rate          = 44100,
+                               .bits_per_sample      = I2S_BITS_PER_SAMPLE_16BIT,
+                               .channel_format       = I2S_CHANNEL_FMT_RIGHT_LEFT,
+                               .communication_format = I2S_COMM_FORMAT_STAND_I2S,
+                               .dma_buf_count        = 8,
+                               .dma_buf_len          = 256,
+                               .intr_alloc_flags     = 0,
+                               .use_apll             = false,
+                               .bits_per_chan        = I2S_BITS_PER_SAMPLE_16BIT};
 
-    // NOTE: buffer needs to be adjusted per AUDIO_SAMPLE_RATE
-    i2s_config_t i2s_config = {
-        .mode = I2S_MODE_MASTER | I2S_MODE_TX,                                  // Only TX
-        .sample_rate = sample_rate,
-        .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-        .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,                           //2-channels
-        .communication_format = I2S_COMM_FORMAT_STAND_I2S,
-        .dma_buf_count = 6,
-        //.dma_buf_len = 1472 / 2,  // (368samples * 2ch * 2(short)) = 1472
-        .dma_buf_len = 512,  // (416samples * 2ch * 2(short)) = 1664
-        .intr_alloc_flags = 0,//ESP_INTR_FLAG_LEVEL1,                                //Interrupt level 1
-        .use_apll = true
-    };
+    i2s_driver_install(i2s_num, &i2s_config, 0, NULL);
 
-    i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
-    i2s_pin_config_t pin_config = {
-            .mck_io_num   = 0,
-            .bck_io_num   = 4,//12,
-            .ws_io_num    = 12,//4,
-            .data_out_num = 13,
-            .data_in_num  = I2S_PIN_NO_CHANGE
-        };
-    i2s_set_pin(I2S_NUM, &pin_config);
-    
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0_CLK_OUT1);
-    WRITE_PERI_REG(PIN_CTRL, 0xFFF0);
-    active = true;
+    i2s_pin_config_t pin_config = {.bck_io_num = GPIO_I2S_BCLK, .ws_io_num = GPIO_I2S_WS, .data_out_num = GPIO_I2S_DATA, .data_in_num = I2S_PIN_NO_CHANGE};
+
+    i2s_set_pin(i2s_num, &pin_config);
 }
 
 void audio_submit(short* stereoAudioBuffer, int frameCount) {
