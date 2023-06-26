@@ -40,7 +40,7 @@
 #define SD_BASE_PATH "/sd"
 #define GAMEBOY_WIDTH (160)
 #define GAMEBOY_HEIGHT (144)
-#define AUDIO_SAMPLE_RATE (32000)
+#define AUDIO_SAMPLE_RATE (44100)
 
 #define AVERAGE(a, b) ( ((((a) ^ (b)) & 0xf7deU) >> 1) + ((a) & (b)) )
 #define LINE_BUFFERS (4)
@@ -709,6 +709,8 @@ menu_action_t show_menu() {
     pax_noclip(&pax_buffer);
     
     menu_set_position(menu, menu_pos);
+
+    keyboard_input_message_t message = {0};
     
     while (!quit) {
         if (render) {
@@ -719,7 +721,7 @@ menu_action_t show_menu() {
             disp_flush();
             render = false;
         }
-        keyboard_input_message_t message = {0};
+        clear_keyboard_queue();
         if (xQueueReceive(button_queue, &message, portMAX_DELAY) == pdTRUE) {
             printf("show_menu() keypress (state=%d): %d\n", message.state, message.input);
             if (message.state) {
@@ -878,8 +880,9 @@ bool file_browser(const char* initial_path, char* selected_file) {
         bool                      exit     = false;
         file_browser_menu_args_t* menuArgs = NULL;
 
+        keyboard_input_message_t message = {0};
         while (!exit) {
-            keyboard_input_message_t message = {0};
+            clear_keyboard_queue();
             if (xQueueReceive(button_queue, &message, 16 / portTICK_PERIOD_MS) == pdTRUE) {
                 if (message.state) {
                     switch (message.input) {
@@ -1127,10 +1130,22 @@ void app_main(void) {
     pax_decode_png_buf(&border, (void*) border_png_start, border_png_end - border_png_start, PAX_BUF_16_565RGB, 0);
 
     display_state("Initializing...", 1000);
-    
+
+    /* Enable the amplifier */
+    PCA9555* io_expander = get_io_expander();
+    if (io_expander == NULL) {
+        ESP_LOGE(TAG, "Failed to retrieve the IO expander");
+        esp_restart();
+    }
+    pca9555_set_gpio_direction(io_expander, IO_AMP_ENABLE, PCA_OUTPUT);
+    pca9555_set_gpio_direction(io_expander, IO_AMP_GAIN0, PCA_OUTPUT);
+    pca9555_set_gpio_direction(io_expander, IO_AMP_GAIN1, PCA_OUTPUT);
+
+    pca9555_set_gpio_value(io_expander, IO_AMP_ENABLE, 1);
+    pca9555_set_gpio_value(io_expander, IO_AMP_GAIN0, 1);
+    pca9555_set_gpio_value(io_expander, IO_AMP_GAIN1, 0);
 
     /* Enable the controller */
-    // TODO: Remove this
     Controller *controller = get_controller();
     controller_enable(controller);
 
@@ -1194,7 +1209,7 @@ void app_main(void) {
         gpio_set_level(0, 0);  // Disable power to LEDs and SD card
     }
     
-    audio_init(AUDIO_SAMPLE_RATE);
+    audio_init(0, AUDIO_SAMPLE_RATE);
 
     vidQueue = xQueueCreate(1, sizeof(uint16_t*));
     xTaskCreatePinnedToCore(&videoTask, "videoTask", 4096, NULL, 5, NULL, 1);
@@ -1229,12 +1244,15 @@ void app_main(void) {
         ESP_LOGE(TAG, "NVS open failed: %d", res);
     }
 
+    // Default value
+    audio_volume_set(2);
     int volume;
     if (nvs_get_i32(nvs_handle_gnuboy, "volume", &volume) == ESP_OK) {
         printf("Volume set to %u\r\n", volume);
         audio_volume_set(volume);
     } else {
         printf("Failed to read volume level from NVS\r\n");
+
     }
 
     nvs_get_str_fixed(nvs_handle_gnuboy, "rom", rom_filename, sizeof(rom_filename) - 1, NULL);
@@ -1248,6 +1266,7 @@ void app_main(void) {
             load_sram();
         }
         printf("Starting Game Loop ...\n");
+        audio_resume();
         game_loop();
     }
 

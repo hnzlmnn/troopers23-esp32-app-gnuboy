@@ -49,9 +49,9 @@ int audio_volume_decrease() {
     return level;
 }
 
-void audio_init(int i2s_num) {
+void audio_init(int i2s_num, int sample_rate) {
     i2s_config_t i2s_config = {.mode                 = I2S_MODE_MASTER | I2S_MODE_TX,
-                               .sample_rate          = 44100,
+                               .sample_rate          = sample_rate,
                                .bits_per_sample      = I2S_BITS_PER_SAMPLE_16BIT,
                                .channel_format       = I2S_CHANNEL_FMT_RIGHT_LEFT,
                                .communication_format = I2S_COMM_FORMAT_STAND_I2S,

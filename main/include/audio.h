@@ -16,7 +16,7 @@ typedef enum
 } volume_level;
 
 
-void audio_init(int sample_rate);
+void audio_init(int i2s_num, int sample_rate);
 void audio_submit(short* stereoAudioBuffer, int frameCount);
 void audio_stop();
 void audio_resume();
