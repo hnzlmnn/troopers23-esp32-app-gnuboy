@@ -25,7 +25,7 @@ void audio_volume_set(volume_level value) {
     }
 
     volumeLevel = value;
-    Volume = (float)volumeLevels[value] * 0.001f;
+    Volume = (float) volumeLevels[value] * 0.001f;
 }
 
 int audio_volume_change() {
@@ -51,15 +51,15 @@ int audio_volume_decrease() {
 
 void audio_init(int i2s_num, int sample_rate) {
     i2s_config_t i2s_config = {.mode                 = I2S_MODE_MASTER | I2S_MODE_TX,
-                               .sample_rate          = sample_rate,
-                               .bits_per_sample      = I2S_BITS_PER_SAMPLE_16BIT,
-                               .channel_format       = I2S_CHANNEL_FMT_RIGHT_LEFT,
-                               .communication_format = I2S_COMM_FORMAT_STAND_I2S,
-                               .dma_buf_count        = 8,
-                               .dma_buf_len          = 256,
-                               .intr_alloc_flags     = 0,
-                               .use_apll             = false,
-                               .bits_per_chan        = I2S_BITS_PER_SAMPLE_16BIT};
+            .sample_rate          = sample_rate,
+            .bits_per_sample      = I2S_BITS_PER_SAMPLE_16BIT,
+            .channel_format       = I2S_CHANNEL_FMT_RIGHT_LEFT,
+            .communication_format = I2S_COMM_FORMAT_STAND_I2S,
+            .dma_buf_count        = 8,
+            .dma_buf_len          = 256,
+            .intr_alloc_flags     = 0,
+            .use_apll             = false,
+            .bits_per_chan        = I2S_BITS_PER_SAMPLE_16BIT};
 
     i2s_driver_install(i2s_num, &i2s_config, 0, NULL);
 
@@ -68,21 +68,26 @@ void audio_init(int i2s_num, int sample_rate) {
     i2s_set_pin(i2s_num, &pin_config);
 }
 
-void audio_submit(short* stereoAudioBuffer, int frameCount) {
+void audio_submit(short *stereoAudioBuffer, int frameCount) {
     if (!active) return;
-    short currentAudioSampleCount = frameCount*2;
+
+    short currentAudioSampleCount = frameCount * 2;
+
+    int len = currentAudioSampleCount * sizeof(int16_t);
+
     for (short i = 0; i < currentAudioSampleCount; ++i) {
         int sample = stereoAudioBuffer[i] * Volume;
+
         if (sample > 32767)
             sample = 32767;
-        else if (sample < -32767)
+        else if (sample < -32768)
             sample = -32767;
 
-        stereoAudioBuffer[i] = ((short)sample);// * 0.5;
+        stereoAudioBuffer[i] = (short) sample;
     }
-    int len = currentAudioSampleCount * sizeof(int16_t);    
+
     size_t count;
-    i2s_write(I2S_NUM, (const char *)stereoAudioBuffer, len, &count, portMAX_DELAY);
+    i2s_write(I2S_NUM, (const char *) stereoAudioBuffer, len, &count, portMAX_DELAY);
     if (count != len) {
         printf("i2s_write_bytes: count (%d) != len (%d)\n", count, len);
         abort();

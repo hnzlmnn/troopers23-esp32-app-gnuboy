@@ -5,6 +5,10 @@ idf_component_register(
         "filesystems.c"
         "menu.c"
         "graphics_wrapper.c"
+        "util.c"
+        "emulator.c"
+        "scanline.c"
+        "odroid_display.c"
     INCLUDE_DIRS
         "."
         "include"

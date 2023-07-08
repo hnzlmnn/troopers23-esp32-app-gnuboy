@@ -36,16 +36,9 @@
 #include "ws2812.h"
 #include "menu.h"
 #include "graphics_wrapper.h"
+#include "util.h"
+#include "emulator.h"
 
-#define SD_BASE_PATH "/sd"
-#define GAMEBOY_WIDTH (160)
-#define GAMEBOY_HEIGHT (144)
-#define AUDIO_SAMPLE_RATE (44100)
-
-#define AVERAGE(a, b) ( ((((a) ^ (b)) & 0xf7deU) >> 1) + ((a) & (b)) )
-#define LINE_BUFFERS (4)
-#define LINE_COUNT   (19)
-#define LINE_COUNT_UNSCALED   (4)
 
 static const char *TAG = "main";
 
@@ -79,47 +72,14 @@ extern const uint8_t volume_up_png_end[] asm("_binary_volume_up_png_end");
 extern const uint8_t volume_down_png_start[] asm("_binary_volume_down_png_start");
 extern const uint8_t volume_down_png_end[] asm("_binary_volume_down_png_end");
 
-extern void cpu_reset();
-extern int cpu_emulate(int cycles);
-extern void loadstate_rom(const unsigned char* rom);
-
-struct fb fb;
-struct pcm pcm;
 
 static nvs_handle_t nvs_handle_gnuboy;
 
-char rom_filename[512] = {0};
-
-uint16_t* displayBuffer[2]; //= { fb0, fb0 }; //[160 * 144];
-uint8_t currentBuffer = 0;
-
-int16_t* audioBuffer[2];
-volatile uint8_t currentAudioBuffer = 0;
-volatile uint16_t currentAudioSampleCount;
-volatile int16_t* currentAudioBufferPtr;
-
-int frame = 0;
-uint elapsedTime = 0;
-
-QueueHandle_t vidQueue;
-QueueHandle_t audioQueue;
-
-ILI9341* ili9341 = NULL;
-static pax_buf_t pax_buffer;
+pax_buf_t pax_buffer;
 xQueueHandle button_queue;
-uint16_t* framebuffer = NULL;
-
-uint16_t* line[LINE_BUFFERS];
-
-const pax_font_t *font = pax_font_saira_condensed;
-
 uint8_t* rom_data = NULL;
-
 pax_buf_t border;
 
-// Note: Magic number obtained by adjusting until audio buffer overflows stop.
-const int audioBufferLength = AUDIO_SAMPLE_RATE / 10 + 1;
-const int AUDIO_BUFFER_SIZE = audioBufferLength * sizeof(int16_t) * 2;
 
 esp_err_t nvs_get_str_fixed(nvs_handle_t handle, const char* key, char* target, size_t target_size, size_t* size) {
     esp_err_t    res;
@@ -141,26 +101,6 @@ esp_err_t nvs_get_str_fixed(nvs_handle_t handle, const char* key, char* target, 
     return res;
 }
 
-bool wait_for_button() {
-    while (1) {
-        keyboard_input_message_t message = {0};
-        if (xQueueReceive(button_queue, &message, portMAX_DELAY) == pdTRUE) {
-            if (message.state) {
-                switch (message.input) {
-                    case BUTTON_BACK:
-                    //case BUTTON_HOME:
-                    case KEY_SHIELD:
-                        return false;
-                    case BUTTON_ACCEPT:
-                        return true;
-                    default:
-                        break;
-                }
-            }
-        }
-    }
-}
-
 void disp_flush() {
     ili9341_write(get_ili9341(), pax_buffer.buf);
 }
@@ -169,468 +109,6 @@ void exit_to_launcher() {
     nvs_close(nvs_handle_gnuboy);
     REG_WRITE(RTC_CNTL_STORE0_REG, 0);
     esp_restart();
-}
-
-void display_state(const char* text, uint16_t delay) {
-    pax_draw_image(&pax_buffer, &border, 0, 0);
-    pax_draw_text(&pax_buffer, 0xFFFFFFFF, font, 18, 0, pax_buffer.height - 18, text);
-    disp_flush();
-    vTaskDelay(pdMS_TO_TICKS(delay));
-}
-
-void display_fatal_error(const char* line0, const char* line1, const char* line2, const char* line3) {
-    const pax_font_t* font = pax_font_saira_regular;
-    pax_noclip(&pax_buffer);
-    pax_background(&pax_buffer, 0xa85a32);
-    if (line0 != NULL) pax_draw_text(&pax_buffer, 0xFFFFFFFF, font, 23, 0, 20 * 0, line0);
-    if (line1 != NULL) pax_draw_text(&pax_buffer, 0xFFFFFFFF, font, 18, 0, 20 * 1, line1);
-    if (line2 != NULL) pax_draw_text(&pax_buffer, 0xFFFFFFFF, font, 18, 0, 20 * 2, line2);
-    if (line3 != NULL) pax_draw_text(&pax_buffer, 0xFFFFFFFF, font, 18, 0, 20 * 3, line3);
-    disp_flush();
-    vTaskDelay(pdMS_TO_TICKS(1000));
-}
-
-void show_error(const char* message, uint16_t delay) {
-    ESP_LOGE(TAG, "%s", message);
-    pax_background(&pax_buffer, 0xa85a32);
-    render_message(&pax_buffer, message);
-    disp_flush();
-    vTaskDelay(pdMS_TO_TICKS(delay));
-}
-
-void show_message(const char* message, uint16_t delay) {
-    ESP_LOGI(TAG, "%s", message);
-    pax_background(&pax_buffer, 0xFFFFFF);
-    render_message(&pax_buffer, message);
-    disp_flush();
-    vTaskDelay(pdMS_TO_TICKS(delay));
-}
-
-static uint16_t getPixel(const uint16_t * bufs, int x, int y, int w1, int h1, int w2, int h2)
-{
-    int x_diff, y_diff, xv, yv, red , green, blue, col, a, b, c, d, index;
-    int x_ratio = (int) (((w1-1)<<16)/w2) + 1;
-    int y_ratio = (int) (((h1-1)<<16)/h2) + 1;
-
-    xv = (int) ((x_ratio * x)>>16);
-    yv = (int) ((y_ratio * y)>>16);
-
-    x_diff = ((x_ratio * x)>>16) - (xv);
-    y_diff = ((y_ratio * y)>>16) - (yv);
-
-    index = yv*w1+xv ;
-
-    a = bufs[index];
-    b = bufs[index+1];
-    c = bufs[index+w1];
-    d = bufs[index+w1+1];
-
-    red = (((a >> 11) & 0x1f) * (1-x_diff) * (1-y_diff) + ((b >> 11) & 0x1f) * (x_diff) * (1-y_diff) +
-        ((c >> 11) & 0x1f) * (y_diff) * (1-x_diff) + ((d >> 11) & 0x1f) * (x_diff * y_diff));
-
-    green = (((a >> 5) & 0x3f) * (1-x_diff) * (1-y_diff) + ((b >> 5) & 0x3f) * (x_diff) * (1-y_diff) +
-        ((c >> 5) & 0x3f) * (y_diff) * (1-x_diff) + ((d >> 5) & 0x3f) * (x_diff * y_diff));
-
-    blue = (((a) & 0x1f) * (1-x_diff) * (1-y_diff) + ((b) & 0x1f) * (x_diff) * (1-y_diff) +
-        ((c) & 0x1f) * (y_diff) * (1-x_diff) + ((d) & 0x1f) * (x_diff * y_diff));
-
-    col = ((int)red << 11) | ((int)green << 5) | ((int)blue);
-
-    return col;
-}
-
-void write_gb_frame(const uint16_t * data) {
-    short x,y;
-    int sending_line=-1;
-    int calc_line=0;
-    
-    if (data == NULL) return;
-    
-    bool scaling = true;
-    
-    if (scaling) {            
-        int outputHeight = ILI9341_HEIGHT - 50;
-        int outputWidth = GAMEBOY_WIDTH + (ILI9341_HEIGHT - 50 - GAMEBOY_HEIGHT);
-        int xpos = (ILI9341_WIDTH - outputWidth) / 2;
-        for (y=0; y<outputHeight; y+=LINE_COUNT)  {
-            for (int i = 0; i < LINE_COUNT; ++i)
-            {
-                if((y + i) >= outputHeight) break;
-
-                int index = (i) * outputWidth;
-            
-                for (x=0; x<outputWidth; ++x) 
-                {
-                    
-                    uint16_t sample = getPixel(data, x, (y+i), GAMEBOY_WIDTH, GAMEBOY_HEIGHT, outputWidth, outputHeight);
-                    line[calc_line][index]=((sample >> 8) | ((sample) << 8));
-                    index++;
-                }
-            }
-            sending_line=calc_line;
-            calc_line = (calc_line + 1) % LINE_BUFFERS;
-            ili9341_write_partial_direct(ili9341, (uint8_t*) line[sending_line], xpos, y + 25, outputWidth, LINE_COUNT);
-        }
-    }
-    else
-    {
-        int ypos = (ILI9341_HEIGHT - GAMEBOY_HEIGHT)/2;
-        int xpos = (ILI9341_WIDTH - GAMEBOY_WIDTH)/2;
-
-        for (y=0; y<GAMEBOY_HEIGHT; y+=LINE_COUNT_UNSCALED)
-        {
-            for (int i = 0; i < LINE_COUNT_UNSCALED; ++i)
-            {
-                if((y + i) >= GAMEBOY_HEIGHT) break;
-
-                int index = (i) * GAMEBOY_WIDTH;
-                int bufferIndex = ((y + i) * GAMEBOY_WIDTH);
-
-                for (x = 0; x < GAMEBOY_WIDTH; ++x)
-                {
-                    uint16_t sample = data[bufferIndex++];
-                    line[calc_line][index++] = ((sample >> 8) | ((sample & 0xff) << 8));
-                }
-            }
-            sending_line=calc_line;
-            calc_line=(calc_line==1)?0:1;
-            ili9341_write_partial_direct(ili9341, (uint8_t*) line[sending_line], xpos, y+ypos, GAMEBOY_WIDTH, LINE_COUNT_UNSCALED);
-        }
-    }
-}
-
-volatile bool videoTaskIsRunning = false;
-void videoTask(void *arg) {
-  videoTaskIsRunning = true;
-  uint16_t* param;
-  while(1) {
-        xQueuePeek(vidQueue, &param, portMAX_DELAY);
-        if (param == (uint16_t*) 1) break;
-        write_gb_frame(param);
-        xQueueReceive(vidQueue, &param, portMAX_DELAY);
-    }
-    videoTaskIsRunning = false;
-    vTaskDelete(NULL);
-}
-
-void run_to_vblank() {
-  /* FRAME BEGIN */
-
-  /* FIXME: djudging by the time specified this was intended
-  to emulate through vblank phase which is handled at the
-  end of the loop. */
-  cpu_emulate(2280);
-
-  /* FIXME: R_LY >= 0; comparsion to zero can also be removed
-  altogether, R_LY is always 0 at this point */
-  while (R_LY > 0 && R_LY < 144)
-  {
-    /* Step through visible line scanning phase */
-    emu_step();
-  }
-
-  /* VBLANK BEGIN */
-
-  if ((frame % 2) == 0) {
-      xQueueSend(vidQueue, &framebuffer, portMAX_DELAY);
-      // swap buffers
-      currentBuffer = currentBuffer ? 0 : 1;
-      framebuffer = displayBuffer[currentBuffer];
-      fb.ptr = (uint8_t*) framebuffer;
-  }
-  rtc_tick();
-
-  sound_mix();
-
-  if (pcm.pos > 100)
-  {
-        currentAudioBufferPtr = (int16_t*) audioBuffer[currentAudioBuffer];
-        currentAudioSampleCount = pcm.pos;
-
-        void* tempPtr = (void*) 0x1234;
-        xQueueSend(audioQueue, &tempPtr, portMAX_DELAY);
-
-        // Swap buffers
-        currentAudioBuffer = currentAudioBuffer ? 0 : 1;
-        pcm.buf = audioBuffer[currentAudioBuffer];
-        pcm.pos = 0;
-  }
-
-  if (!(R_LCDC & 0x80)) {
-    /* LCDC operation stopped */
-    /* FIXME: djudging by the time specified, this is
-    intended to emulate through visible line scanning
-    phase, even though we are already at vblank here */
-    cpu_emulate(32832);
-  }
-
-  while (R_LY > 0) {
-    /* Step through vblank phase */
-    emu_step();
-  }
-}
-
-char* system_util_GetFileName(const char* path)
-{
-    int length = strlen(path);
-    int fileNameStart = length;
-
-    if (fileNameStart < 1) abort();
-
-    while (fileNameStart > 0)
-    {
-        if (path[fileNameStart] == '/')
-        {
-            ++fileNameStart;
-            break;
-        }
-
-        --fileNameStart;
-    }
-
-    int size = length - fileNameStart + 1;
-
-    char* result = malloc(size);
-    if (!result) abort();
-
-    result[size - 1] = 0;
-    for (int i = 0; i < size - 1; ++i)
-    {
-        result[i] = path[fileNameStart + i];
-    }
-
-    printf("GetFileName: result='%s'\n", result);
-
-    return result;
-}
-
-char* create_savefile_path(const char* rom_filename, const char* ext) {
-    if (!rom_filename) return NULL;
-    if (!ext) return NULL;
-    
-    int path_end = -1;
-    int ext_pos = -1;
-    
-    for (int i = strlen(rom_filename) - 1; i >= 0; i--) {
-        if (ext_pos == -1) {
-            if (rom_filename[i] == '.') {
-                ext_pos = i;
-            }
-        }
-        if (rom_filename[i] == '/') {
-            path_end = i;
-            break;
-        }
-    }
-    
-    if ((path_end < 0) || (ext_pos < 0)) {
-        ESP_LOGE(TAG, "Can't find savefile path");
-        return NULL;
-    }
-    
-    char* path = strdup(rom_filename);
-    if (path == NULL) return NULL;
-    path[path_end] = '\0';
-    char* filename = malloc(strlen(&rom_filename[path_end + 1]) + 1);
-    if (filename == NULL) {
-        free(path);
-        return NULL;
-    }
-    memcpy(filename, &rom_filename[path_end + 1], strlen(&rom_filename[path_end + 1]));
-    filename[strlen(&rom_filename[path_end + 1])] = '\0';
-    char* filename_without_type = strdup(filename);
-    if (filename_without_type == NULL) {
-        free(path);
-        free(filename);
-        return NULL;
-    }
-    filename_without_type[ext_pos - strlen(path) - 1] = '\0';
-
-    size_t result_len = strlen(path) + 1 + strlen(filename_without_type) + 1 + strlen(ext);
-    char* result = malloc(result_len);
-    memset(result, 0, result_len);
-    if (result != NULL) {
-        strcat(result, path);
-        strcat(result, "/");
-        strcat(result, filename_without_type);
-        strcat(result, ".");
-        strcat(result, ext);
-        printf("%s\n", result);
-    }
-    
-    free(path);
-    free(filename);
-    free(filename_without_type);
-    
-    return result;
-}
-
-static bool isOpen = false;
-
-size_t sdcard_copy_file_to_memory(const char* path, void* ptr)
-{
-    size_t ret = 0;
-
-    if (!isOpen)
-    {
-        printf("sdcard_copy_file_to_memory: not open.\n");
-    }
-    else
-    {
-        if (!ptr)
-        {
-            printf("sdcard_copy_file_to_memory: ptr is null.\n");
-        }
-        else
-        {
-            FILE* f = fopen(path, "rb");
-            if (f == NULL)
-            {
-                printf("sdcard_copy_file_to_memory: fopen failed.\n");
-            }
-            else
-            {
-                // copy
-                const size_t BLOCK_SIZE = 512;
-                while(true)
-                {
-                    __asm__("memw");
-                    size_t count = fread((uint8_t*)ptr + ret, 1, BLOCK_SIZE, f);
-                    __asm__("memw");
-
-                    ret += count;
-
-                    if (count < BLOCK_SIZE) break;
-                }
-            }
-        }
-    }
-
-    return ret;
-}
-
-bool load_state() {
-    printf("LOADING STATE\n");
-    if (rom_filename[0] == '\0') {
-        show_error("No ROM loaded", 100);
-        return;
-    }
-    char* pathName = create_savefile_path(rom_filename, "sta");
-    if (!pathName) abort();
-    FILE* f = fopen(pathName, "r");
-    if (f == NULL) {
-        printf("load_state: fopen load failed\n");
-        return false;
-    } else {
-        loadstate(f);
-        fclose(f);
-        vram_dirty();
-        pal_dirty();
-        sound_dirty();
-        mem_updatemap();
-        printf("load_state: loadstate OK.\n");
-    }
-    free(pathName);
-    display_state("State loaded", 50);
-    return true;
-}
-
-void save_state() {
-    printf("SAVING STATE\n");
-    if (rom_filename[0] == '\0') {
-        show_error("No ROM loaded", 100);
-        return;
-    }
-    char* pathName = create_savefile_path(rom_filename, "sta");
-    if (!pathName) abort();
-    FILE* f = fopen(pathName, "w");
-    if (f == NULL) {
-        printf("%s: fopen save failed (%s)\n", __func__, pathName);
-        free(pathName);
-        return;
-    }
-    savestate(f);
-    fclose(f);
-    printf("%s: savestate OK.\n", __func__);
-    free(pathName);
-    show_message("Game state saved", 50);
-}
-
-void load_sram() {
-    printf("LOADING SRAM\n");
-    if (rom_filename[0] == '\0') {
-        show_error("No ROM loaded", 100);
-        return;
-    }
-    char* pathName = create_savefile_path(rom_filename, "srm");
-    if (!pathName) abort();
-    FILE* f = fopen(pathName, "r");
-    if (f == NULL) {
-        display_state("Failed to load SRAM", 100);
-    } else {
-        sram_load(f);
-        fclose(f);
-        vram_dirty();
-        pal_dirty();
-        sound_dirty();
-        mem_updatemap();
-        printf("SRAM loaded.\n");
-        display_state("SRAM loaded", 50);
-    }
-    free(pathName);
-}
-
-void save_sram() {
-    printf("SAVING SRAM\n");
-    if (rom_filename[0] == '\0') {
-        show_error("No ROM loaded", 100);
-        return;
-    }
-    char* pathName = create_savefile_path(rom_filename, "srm");
-    if (!pathName) abort();
-    FILE* f = fopen(pathName, "w");
-    if (f == NULL) {
-        printf("SRAM save failed\n");
-        free(pathName);
-        return;
-    }
-    sram_save(f);
-    fclose(f);
-    printf("SRAM saved.");
-    free(pathName);
-    display_state("SRAM saved", 100);
-}
-
-
-int pcm_submit() {
-    audio_submit(currentAudioBufferPtr, currentAudioSampleCount >> 1);
-    return 1;
-}
-
-volatile bool AudioTaskIsRunning = false;
-void audioTask(void* arg) {
-  uint16_t* param;
-
-  AudioTaskIsRunning = true;
-  while(1) {
-    xQueuePeek(audioQueue, &param, portMAX_DELAY);
-    if (param == 0) {
-        // TODO: determine if this is still needed
-        abort();
-    } else if (param == 1) {
-        break;
-    } else {
-        pcm_submit();
-    }
-    xQueueReceive(audioQueue, &param, portMAX_DELAY);
-  }
-
-  printf("audioTask: exiting.\n");
-
-  AudioTaskIsRunning = false;
-  vTaskDelete(NULL);
-
-  while (1) {}
 }
 
 uint8_t* load_file_to_ram(FILE* fd, size_t* fsize) {
@@ -778,28 +256,6 @@ menu_action_t show_menu() {
     pax_buf_destroy(&icon_volume_up);
     pax_buf_destroy(&icon_volume_down);
     return action;
-}
-
-void reset_and_init() {
-    emu_reset();
-
-    //&rtc.carry, &rtc.stop,
-    rtc.d = 1;
-    rtc.h = 1;
-    rtc.m = 1;
-    rtc.s = 1;
-    rtc.t = 1;
-
-    // vid_begin
-    memset(&fb, 0, sizeof(fb));
-    fb.w = 160;
-    fb.h = 144;
-    fb.pelsize = 2;
-    fb.pitch = fb.w * fb.pelsize;
-    fb.indexed = 0;
-    fb.ptr = framebuffer;
-    fb.enabled = 1;
-    fb.dirty = 0;
 }
 
 typedef struct _file_browser_menu_args {
@@ -988,6 +444,7 @@ bool load_rom(bool browser, bool sd_card) {
 
     loader_init(rom_data);
     reset_and_init();
+
     lcd_begin();
     sound_reset();
     
@@ -998,100 +455,8 @@ bool load_rom(bool browser, bool sd_card) {
     return true;
 }
 
-void game_loop() {
-    if (rom_filename[0] == '\0') {
-        show_error("No ROM loaded", 100);
-        return;
-    }
-    pax_draw_image(&pax_buffer, &border, 0, 0);
-    disp_flush();
-
-    uint startTime;
-    uint stopTime;
-    uint totalElapsedTime = 0;
-    uint actualFrameCount = 0;
-        
-    bool quit = false;
-    while (!quit) {
-        //startTime = xthal_get_ccount();
-        run_to_vblank();
-        /*stopTime = xthal_get_ccount();
-
-        if (stopTime > startTime) {
-            elapsedTime = (stopTime - startTime);
-        } else {
-            elapsedTime = ((uint64_t)stopTime + (uint64_t)0xffffffff) - (startTime);
-        }
-
-        totalElapsedTime += elapsedTime;*/
-        ++frame;
-        /*++actualFrameCount;
-
-        if (actualFrameCount == 60) {
-          float seconds = totalElapsedTime / (CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ * 1000000.0f); // 240000000.0f; // (240Mhz)
-          float fps = actualFrameCount / seconds;
-
-          printf("HEAP:0x%x, FPS:%f\n", esp_get_free_heap_size(), fps);
-
-          actualFrameCount = 0;
-          totalElapsedTime = 0;
-        }*/
-        
-        keyboard_input_message_t buttonMessage = {0};
-        BaseType_t queueResult;
-        do {
-            queueResult = xQueueReceive(button_queue, &buttonMessage, 0);
-            if (queueResult == pdTRUE) {
-                uint8_t button = buttonMessage.input;
-                bool value = buttonMessage.state;
-                switch(button) {
-                    case JOYSTICK_DOWN:
-                        pad_set(PAD_DOWN, value);
-                        break;
-                    case JOYSTICK_UP:
-                        pad_set(PAD_UP, value);
-                        break;
-                    case JOYSTICK_LEFT:
-                        pad_set(PAD_LEFT, value);
-                        break;
-                    case JOYSTICK_RIGHT:
-                        pad_set(PAD_RIGHT, value);
-                        break;
-                    case BUTTON_ACCEPT:
-                        pad_set(PAD_A, value);
-                        break;
-                    case BUTTON_BACK:
-                        pad_set(PAD_B, value);
-                        break;
-                    case BUTTON_START:
-                        pad_set(PAD_START, value);
-                        break;
-                    case BUTTON_SELECT:
-                        pad_set(PAD_SELECT, value);
-                        break;
-                    //case BUTTON_HOME:
-                    case KEY_SHIELD:
-                        if (value) {
-                            audio_stop();
-                            save_sram();
-                            save_state();
-                            exit_to_launcher();
-                        }
-                        break;
-                    //case BUTTON_MENU:
-                    case KEY_M:
-                        if (value) {
-                            quit = true;
-                        }
-                    default:
-                        break;
-                }
-            }
-        } while (queueResult == pdTRUE);
-    }
-}
-
 void app_main(void) {
+    system_init();
     esp_err_t res;
     //audio_init();
 
@@ -1126,7 +491,6 @@ void app_main(void) {
         esp_restart();
     }
 
-    ili9341 = get_ili9341();
     pax_buf_init(&pax_buffer, NULL, 320, 240, PAX_BUF_16_565RGB);
 
     pax_decode_png_buf(&border, (void*) border_png_start, border_png_end - border_png_start, PAX_BUF_16_565RGB, 0);
@@ -1151,46 +515,9 @@ void app_main(void) {
     Controller *controller = get_controller();
     controller_enable(controller);
 
-    //bsp_rp2040_init();
-    //button_queue = get_rp2040()->queue;
     button_queue = get_keyboard()->queue;
 
     nvs_flash_init();
-    
-    displayBuffer[0] = heap_caps_malloc(160 * 144 * 2, MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
-    displayBuffer[1] = heap_caps_malloc(160 * 144 * 2, MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
-    framebuffer = displayBuffer[0];
-    currentBuffer = 0;
-    
-    if (displayBuffer[0] == NULL) {
-        ESP_LOGE(TAG, "Failed to allocate fb0!");
-        display_fatal_error("Failed to allocate fb0!", NULL, NULL, NULL);
-        exit_to_launcher();
-    }
-
-    if (displayBuffer[1] == NULL) {
-        ESP_LOGE(TAG, "Failed to allocate fb1!");
-        display_fatal_error("Failed to allocate fb1!", NULL, NULL, NULL);
-        exit_to_launcher();
-    }
-    
-    for (int i = 0; i < 2; ++i){
-        memset(displayBuffer[i], 0, 160 * 144 * 2);
-    }
-    
-    printf("app_main: displayBuffer[0]=%p, [1]=%p\n", displayBuffer[0], displayBuffer[1]);
-    
-    const size_t lineSize = ILI9341_WIDTH * LINE_COUNT * sizeof(uint16_t);
-    for (int x = 0; x < LINE_BUFFERS; x++)
-    {
-        line[x] = heap_caps_malloc(lineSize, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
-        if (line[x] == NULL) {
-            ESP_LOGE(TAG, "Failed to allocate line %u!", x);
-            display_fatal_error("Failed to allocate line!", NULL, NULL, NULL);
-            exit_to_launcher();
-        }
-        memset(line[x], 0, lineSize);
-    }
     
     /* Start internal filesystem */
     if (mount_internal_filesystem() != ESP_OK) {
@@ -1213,33 +540,9 @@ void app_main(void) {
     
     audio_init(0, AUDIO_SAMPLE_RATE);
 
-    vidQueue = xQueueCreate(1, sizeof(uint16_t*));
-    xTaskCreatePinnedToCore(&videoTask, "videoTask", 4096, NULL, 5, NULL, 1);
-    audioQueue = xQueueCreate(1, sizeof(uint16_t*));
-    xTaskCreatePinnedToCore(&audioTask, "audioTask", 2048, NULL, 5, NULL, 1); //768
-
     reset_and_init();
 
-    // pcm.len = count of 16bit samples (x2 for stereo)
-    memset(&pcm, 0, sizeof(pcm));
-    pcm.hz = AUDIO_SAMPLE_RATE;
-    pcm.stereo = 1;
-    pcm.len = /*pcm.hz / 2*/ audioBufferLength;
-    pcm.buf = (int16_t*) heap_caps_malloc(AUDIO_BUFFER_SIZE, MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
-    pcm.pos = 0;
-
-    audioBuffer[0] = (int32_t*) pcm.buf;
-    audioBuffer[1] = (int32_t*) heap_caps_malloc(AUDIO_BUFFER_SIZE, MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
-    
-    if (audioBuffer[0] == NULL) {
-        show_error("Failed to allocate audio buffer 0", 100);
-        exit_to_launcher();
-    }
-    
-    if (audioBuffer[1] == NULL) {
-        show_error("Failed to allocate audio buffer 1", 100);
-        exit_to_launcher();
-    }
+    lcd_begin();
 
     res = nvs_open("gnuboy", NVS_READWRITE, &nvs_handle_gnuboy);
     if (res != ESP_OK) {
