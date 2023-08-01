@@ -69,7 +69,7 @@ char* create_savefile_path(const char* rom_filename, const char* ext) {
     }
     filename_without_type[ext_pos - strlen(path) - 1] = '\0';
 
-    size_t result_len = strlen(path) + 1 + strlen(filename_without_type) + 1 + strlen(ext);
+    size_t result_len = strlen(path) + 1 + strlen(filename_without_type) + 1 + strlen(ext) + 1;
     char* result = malloc(result_len);
     memset(result, 0, result_len);
     if (result != NULL) {

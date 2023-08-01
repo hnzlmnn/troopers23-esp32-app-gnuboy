@@ -537,7 +537,7 @@ void app_main(void) {
         ESP_LOGE(TAG, "SD card filesystem not mounted!");
         gpio_set_level(0, 0);  // Disable power to LEDs and SD card
     }
-    
+
     audio_init(0, AUDIO_SAMPLE_RATE);
 
     reset_and_init();

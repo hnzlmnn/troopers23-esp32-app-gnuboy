@@ -281,7 +281,7 @@ int rom_load(byte* data)
 		}
 		else
 		{
-			printf("No free spece for SRAM.\n");
+			printf("No free space for SRAM.\n");
 			abort();
 		}
 	}
