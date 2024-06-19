@@ -318,6 +318,7 @@ int sram_load(FILE* f)
 int sram_save(FILE* f)
 {
 	/* If we crash before we ever loaded sram, DO NOT SAVE! */
+    printf("SRAM batt: %d, loaded: %d, ramsize: %d\n", mbc.batt, ram.loaded, mbc.ramsize);
 	if (!mbc.batt || !ram.loaded || !mbc.ramsize)
 		return -1;
     
