@@ -30,7 +30,7 @@
 	url = https://github.com/badgeteam/mch2022-tools
 [submodule "components/keyboard"]
 	path = components/keyboard
-	url = https://github.com/badgeteam/troopers2023-keyboard.git
+	url = git@github.com:badgeteam/troopers24-keyboard.git
 [submodule "components/troopers23-bsp"]
 	path = components/troopers23-bsp
 	url = https://github.com/badgeteam/esp32-component-troopers23-bsp.git
@@ -49,3 +49,15 @@
 [submodule "components/troopers23-efuse"]
 	path = components/troopers23-efuse
 	url = https://github.com/badgeteam/troopers23-efuse.git
+[submodule "components/troopers24-keyboard"]
+	path = components/troopers24-keyboard
+	url = git@github.com:badgeteam/troopers24-keyboard.git
+[submodule "components/troopers24-efuse"]
+	path = components/troopers24-efuse
+	url = git@github.com:badgeteam/troopers24-efuse.git
+[submodule "components/troopers24-bsp"]
+	path = components/troopers24-bsp
+	url = git@github.com:badgeteam/troopers24-bsp.git
+[submodule "components/spi-st77xx"]
+	path = components/spi-st77xx
+	url = git@github.com:badgeteam/eps32-component-spi-st77xx.git
