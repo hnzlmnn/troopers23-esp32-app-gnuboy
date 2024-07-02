@@ -181,36 +181,36 @@ void save_sram() {
 }
 
 void display_state(const char* text, uint16_t delay) {
-    pax_draw_image(&pax_buffer, &border, 0, 0);
-    pax_draw_text(&pax_buffer, 0xFFFFFFFF, font, 18, 0, pax_buffer.height - 18, text);
+    pax_draw_image(pax_buffer, &border, 0, 0);
+    pax_draw_text(pax_buffer, 0xFFFFFFFF, font, 18, 0, pax_buffer->height - 18, text);
     disp_flush();
     vTaskDelay(pdMS_TO_TICKS(delay));
 }
 
 void display_fatal_error(const char* line0, const char* line1, const char* line2, const char* line3) {
     const pax_font_t* font = pax_font_saira_regular;
-    pax_noclip(&pax_buffer);
-    pax_background(&pax_buffer, 0xa85a32);
-    if (line0 != NULL) pax_draw_text(&pax_buffer, 0xFFFFFFFF, font, 23, 0, 20 * 0, line0);
-    if (line1 != NULL) pax_draw_text(&pax_buffer, 0xFFFFFFFF, font, 18, 0, 20 * 1, line1);
-    if (line2 != NULL) pax_draw_text(&pax_buffer, 0xFFFFFFFF, font, 18, 0, 20 * 2, line2);
-    if (line3 != NULL) pax_draw_text(&pax_buffer, 0xFFFFFFFF, font, 18, 0, 20 * 3, line3);
+    pax_noclip(pax_buffer);
+    pax_background(pax_buffer, 0xa85a32);
+    if (line0 != NULL) pax_draw_text(pax_buffer, 0xFFFFFFFF, font, 23, 0, 20 * 0, line0);
+    if (line1 != NULL) pax_draw_text(pax_buffer, 0xFFFFFFFF, font, 18, 0, 20 * 1, line1);
+    if (line2 != NULL) pax_draw_text(pax_buffer, 0xFFFFFFFF, font, 18, 0, 20 * 2, line2);
+    if (line3 != NULL) pax_draw_text(pax_buffer, 0xFFFFFFFF, font, 18, 0, 20 * 3, line3);
     disp_flush();
     vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
 void show_error(const char* message, uint16_t delay) {
     ESP_LOGE(TAG, "%s", message);
-    pax_background(&pax_buffer, 0xa85a32);
-    render_message(&pax_buffer, message);
+    pax_background(pax_buffer, 0xa85a32);
+    render_message(pax_buffer, message);
     disp_flush();
     vTaskDelay(pdMS_TO_TICKS(delay));
 }
 
 void show_message(const char* message, uint16_t delay) {
     ESP_LOGI(TAG, "%s", message);
-    pax_background(&pax_buffer, 0xFFFFFF);
-    render_message(&pax_buffer, message);
+    pax_background(pax_buffer, 0xFFFFFF);
+    render_message(pax_buffer, message);
     disp_flush();
     vTaskDelay(pdMS_TO_TICKS(delay));
 }

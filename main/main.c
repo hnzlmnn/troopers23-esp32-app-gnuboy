@@ -75,9 +75,9 @@ extern const uint8_t volume_down_png_end[] asm("_binary_volume_down_png_end");
 
 static nvs_handle_t nvs_handle_gnuboy;
 
-pax_buf_t pax_buffer;
 xQueueHandle button_queue;
 uint8_t* rom_data = NULL;
+pax_buf_t* pax_buffer;
 pax_buf_t border;
 
 
@@ -102,7 +102,10 @@ esp_err_t nvs_get_str_fixed(nvs_handle_t handle, const char* key, char* target, 
 }
 
 void disp_flush() {
-    ili9341_write(get_ili9341(), pax_buffer.buf);
+    esp_err_t res = display_flush();
+    if (res != ESP_OK) {
+        ESP_LOGE(TAG, "flushing display failed: %d", res);
+    }
 }
 
 void exit_to_launcher() {
@@ -184,7 +187,7 @@ menu_action_t show_menu() {
     bool render = true;
     bool quit = false;
     menu_action_t action = ACTION_NONE;
-    pax_noclip(&pax_buffer);
+    pax_noclip(pax_buffer);
     
     menu_set_position(menu, menu_pos);
 
@@ -193,9 +196,9 @@ menu_action_t show_menu() {
     while (!quit) {
         if (render) {
             const pax_font_t* font = pax_font_saira_regular;
-            pax_background(&pax_buffer, 0xFFFFFF);
-            menu_render_grid(&pax_buffer, menu, 0, 0, 320, 220);//160);
-            pax_draw_text(&pax_buffer, 0xFF491d88, font, 18, 5, 240 - 18, "🅰 select  🅱 exit");
+            pax_background(pax_buffer, 0xFFFFFF);
+            menu_render_grid(pax_buffer, menu, 0, 0, 320, 220);//160);
+            pax_draw_text(pax_buffer, 0xFF491d88, font, 18, 5, 240 - 18, "🅰 select  🅱 exit");
             disp_flush();
             render = false;
         }
@@ -232,7 +235,7 @@ menu_action_t show_menu() {
                         quit = true;
                         break;
                     //case BUTTON_MENU:
-                    case KEY_M:
+                    case JOYSTICK_PUSH:
                         action = ACTION_RUN;
                         quit = true;
                         break;
@@ -359,9 +362,9 @@ bool file_browser(const char* initial_path, char* selected_file) {
                             menuArgs = menu_get_callback_args(menu, menu_get_position(menu));
                             break;
                         //case BUTTON_HOME:
-                        case KEY_SHIELD:
-                            exit = true;
-                            break;
+//                        case KEY_SHIELD:
+//                            exit = true;
+//                            break;
                         default:
                             break;
                     }
@@ -369,14 +372,14 @@ bool file_browser(const char* initial_path, char* selected_file) {
             }
 
             if (renderbg) {
-                pax_background(&pax_buffer, 0xFFFFFF);
-                pax_noclip(&pax_buffer);
-                pax_draw_text(&pax_buffer, 0xFF000000, pax_font_saira_regular, 18, 5, 240 - 19, "🅰 select  🅱 back");
+                pax_background(pax_buffer, 0xFFFFFF);
+                pax_noclip(pax_buffer);
+                pax_draw_text(pax_buffer, 0xFF000000, pax_font_saira_regular, 18, 5, 240 - 19, "🅰 select  🅱 back");
                 renderbg = false;
             }
 
             if (render) {
-                menu_render(&pax_buffer, menu, 0, 0, 320, 220);
+                menu_render(pax_buffer, menu, 0, 0, 320, 220);
                 disp_flush();
                 render = false;
             }
@@ -464,34 +467,21 @@ void app_main(void) {
         ESP_LOGE(TAG, "Failed to initialize basic board support functions");
         esp_restart();
     }
+    pax_buffer = get_pax_buffer();
 
     controller_enable_leds(get_controller(), &controller_led_callback);
 
     /* Initialize the LEDs */
     ws2812_init(GPIO_LED_DATA, 150);
-    const uint8_t led_off[15] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    const uint8_t led_off[NUM_LEDS] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     ws2812_send_data(led_off, sizeof(led_off));
 
     /* Turning the backlight on */
-    gpio_config_t io_conf = {
-        .intr_type    = GPIO_INTR_DISABLE,
-        .mode         = GPIO_MODE_OUTPUT,
-        .pin_bit_mask = 1LL << GPIO_LCD_BL,
-        .pull_down_en = 0,
-        .pull_up_en   = 0,
-    };
-    res = gpio_config(&io_conf);
+    res = st77xx_backlight(true);
     if (res != ESP_OK) {
-        ESP_LOGE(TAG, "LCD Backlight set_direction failed: %d", res);
+        ESP_LOGE(TAG, "Setting LCD Backlight failed: %d", res);
         esp_restart();
     }
-    res = gpio_set_level(GPIO_LCD_BL, true);
-    if (res != ESP_OK) {
-        ESP_LOGE(TAG, "LCD Backlight set_level failed: %d", res);
-        esp_restart();
-    }
-
-    pax_buf_init(&pax_buffer, NULL, 320, 240, PAX_BUF_16_565RGB);
 
     pax_decode_png_buf(&border, (void*) border_png_start, border_png_end - border_png_start, PAX_BUF_16_565RGB, 0);
 

@@ -4,7 +4,7 @@
 #include <memory.h>
 #include <stdbool.h>
 #include "esp_attr.h"
-#include "ili9341.h"
+#include "st77xx.h"
 
 
 #define LINE_BUFFERS (2)
@@ -34,7 +34,7 @@ void buffer_diff(void *buffer, void *old_buffer,
                  uint8_t pixel_mask, uint8_t palette_shift_mask,
                  scanline *out_diff);
 
-void display_write_gameboy_frame(ILI9341 *device,
+void display_write_gameboy_frame(ST77XX *device,
                                  void *buffer, scanline *diff,
                                  short width, short height,
                                  short stride,short pixel_width,

@@ -145,14 +145,14 @@ void videoTask(void *arg) {
 ////                                    xpos, ypos,
 //                                   GAMEBOY_WIDTH, GAMEBOY_HEIGHT,
 //                                   GAMEBOY_WIDTH * 2, 2, 0xFF, NULL);
-            display_write_gameboy_frame(get_ili9341(), update->buffer, forceRedraw ? NULL : update->diff,
+            display_write_gameboy_frame(get_st77xx(), update->buffer, forceRedraw ? NULL : update->diff,
                                         GAMEBOY_WIDTH, GAMEBOY_HEIGHT,
                                         GAMEBOY_WIDTH * 2, 2,
                                         xpos, ypos, 205, 189);
         } else {
-            uint16_t xpos = (ILI9341_WIDTH - GAMEBOY_WIDTH) / 2;
-            uint16_t ypos = (ILI9341_HEIGHT - GAMEBOY_HEIGHT) / 2;
-            display_write_gameboy_frame(get_ili9341(), update->buffer, forceRedraw ? NULL : update->diff,
+            uint16_t xpos = (ST77XX_WIDTH - GAMEBOY_WIDTH) / 2;
+            uint16_t ypos = (ST77XX_HEIGHT - GAMEBOY_HEIGHT) / 2;
+            display_write_gameboy_frame(get_st77xx(), update->buffer, forceRedraw ? NULL : update->diff,
                                         GAMEBOY_WIDTH, GAMEBOY_HEIGHT,
                                         GAMEBOY_WIDTH * 2, 2,
                                         xpos, ypos, GAMEBOY_WIDTH, GAMEBOY_HEIGHT);
@@ -187,7 +187,7 @@ void system_init() {
     update2.buffer = displayBuffer[1];
 
     odroid_display_init();
-    const size_t lineSize = ILI9341_WIDTH * LINE_COUNT * sizeof(uint16_t);
+    const size_t lineSize = ST77XX_WIDTH * LINE_COUNT * sizeof(uint16_t);
     for (int x = 0; x < LINE_BUFFERS; x++)
     {
         line[x] = heap_caps_malloc(lineSize, MALLOC_CAP_DMA | MALLOC_CAP_8BIT);
@@ -234,16 +234,16 @@ bool update_input() {
                     pad_set(PAD_SELECT, value);
                     break;
                     //case BUTTON_HOME:
-                case KEY_SHIELD:
-                    if (value) {
-                        audio_stop();
-                        save_sram();
-                        save_state();
-                        exit_to_launcher();
-                    }
-                    break;
+//                case KEY_SHIELD:
+//                    if (value) {
+//                        audio_stop();
+//                        save_sram();
+//                        save_state();
+//                        exit_to_launcher();
+//                    }
+//                    break;
                     //case BUTTON_MENU:
-                case KEY_M:
+                case JOYSTICK_PUSH:
                     if (value) {
                         return true;
                     }
@@ -260,7 +260,7 @@ void game_loop() {
         show_error("No ROM loaded", 100);
         return;
     }
-    pax_draw_image(&pax_buffer, &border, 0, 0);
+    pax_draw_image(pax_buffer, &border, 0, 0);
     disp_flush();
 
     uint startTime;

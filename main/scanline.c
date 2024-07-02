@@ -139,7 +139,7 @@ scale_buffer(uint16_t *buffer, short width, scanline *update, short pixel_width,
 }
 
 
-void display_write_gameboy_frame(ILI9341 *device,
+void display_write_gameboy_frame(ST77XX *device,
                                  void *buffer, scanline *diff,
                                  short width, short height,
                                  short stride, short pixel_width,
@@ -162,14 +162,14 @@ void display_write_gameboy_frame(ILI9341 *device,
                         uint16_t sample = ((uint16_t *) buffer)[base + i];
                         ((uint16_t *) buffer)[base + i] = sample << 8 | sample >> 8;
                     }
-                    ili9341_write_partial_direct(device, buffer + (y * stride) + (update->left * pixel_width),
+                    st77xx_write_partial_direct(device, buffer + (y * stride) + (update->left * pixel_width),
                                                  x_origin + update->left,
                                                  y_origin + y,
                                                  width, height);
                 } else {
                     uint16_t *scaled = scale_buffer(buffer, width, update, pixel_width, scaled_width, scaled_height,
                                                     x_scale, y_scale);
-                    ili9341_write_partial_direct(device, (void *) scaled,
+                    st77xx_write_partial_direct(device, (void *) scaled,
                                                  x_origin + (uint16_t) ((float) update->left * x_scale),
                                                  y_origin + (uint16_t) ((float) y * y_scale), scaled_width,
                                                  scaled_height);
@@ -184,7 +184,7 @@ void display_write_gameboy_frame(ILI9341 *device,
                 uint16_t sample = ((uint16_t *) buffer)[i];
                 ((uint16_t *) buffer)[i] = sample << 8 | sample >> 8;
             }
-            ili9341_write_partial_direct(device, buffer,
+            st77xx_write_partial_direct(device, buffer,
                                          x_origin + full_update.left,
                                          y_origin + full_update.top,
                                          full_update.width, full_update.repeat);
@@ -192,7 +192,7 @@ void display_write_gameboy_frame(ILI9341 *device,
             uint16_t *scaled = scale_buffer(buffer, width, &full_update, pixel_width, scaled_width, scaled_height,
                                             x_scale,
                                             y_scale);
-            ili9341_write_partial_direct(device, (void *) scaled, x_origin, y_origin, scaled_width, scaled_height);
+            st77xx_write_partial_direct(device, (void *) scaled, x_origin, y_origin, scaled_width, scaled_height);
             free(scaled);
         }
     }

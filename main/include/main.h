@@ -13,8 +13,6 @@
 #include "pax_gfx.h"
 // For PNG images.
 #include "pax_codecs.h"
-// The screen driver.
-#include "ili9341.h"
 // For all system settings and alike.
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

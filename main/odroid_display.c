@@ -78,7 +78,7 @@ static inline uint16_t *line_buffer_get() {
     return buffer;
 }
 
-static void send_continue_line(ILI9341 *device, uint16_t *line, int width, int lineCount) {
+static void send_continue_line(ST77XX *device, uint16_t *line, int width, int lineCount) {
     spi_transaction_t transaction = {
             .length = width * 2 * lineCount * 8,  // transaction length is in bits
             .tx_buffer = line,
@@ -90,7 +90,7 @@ static void send_continue_line(ILI9341 *device, uint16_t *line, int width, int l
 }
 
 static inline void
-write_rect(ILI9341 *device, void *buffer, uint16_t *palette,
+write_rect(ST77XX *device, void *buffer, uint16_t *palette,
            short origin_x, short origin_y, short left, short top,
            short width, short height, short stride, short pixel_width,
            uint8_t pixel_mask, short x_inc, short y_inc) {
@@ -178,11 +178,11 @@ void odroid_display_set_scale(short width, short height, float aspect) {
            width, height, aspect, x_inc, y_inc, x_scale, y_scale, x_origin, y_origin);
 }
 
-void odroid_display_lock(ILI9341 *device) {
+void odroid_display_lock(ST77XX *device) {
     if (device->mutex != NULL) xSemaphoreTake(device->mutex, portMAX_DELAY);
 }
 
-void odroid_display_unlock(ILI9341 *device) {
+void odroid_display_unlock(ST77XX *device) {
     if (device->mutex != NULL) xSemaphoreGive(device->mutex);
 }
 
@@ -196,7 +196,7 @@ void odroid_display_init() {
     }
 }
 
-void ili9341_write_frame_scaled(ILI9341 *device, void *buffer, odroid_scanline *diff,
+void ili9341_write_frame_scaled(ST77XX *device, void *buffer, odroid_scanline *diff,
                                 short width, short height, short stride,
                                 short pixel_width, uint8_t pixel_mask,
                                 uint16_t *palette) {

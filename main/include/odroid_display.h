@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include "ili9341.h"
+#include "st77xx.h"
 
 enum ODROID_SYS_ERROR {
     ODROID_SD_ERR_BADFILE = 1,
@@ -32,7 +32,7 @@ void odroid_display_init();
 void odroid_display_reset_scale(short width, short height);
 void odroid_display_set_scale(short width, short height, float aspect);
 
-void ili9341_write_frame_scaled(ILI9341 *device, void *buffer, odroid_scanline *diff,
+void ili9341_write_frame_scaled(ST77XX *device, void *buffer, odroid_scanline *diff,
                                 short width, short height, short stride,
                                 short pixel_width, uint8_t pixel_mask,
                                 uint16_t *palette);

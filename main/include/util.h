@@ -33,7 +33,7 @@
 #include "graphics_wrapper.h"
 
 extern char rom_filename[512];
-extern pax_buf_t pax_buffer;
+extern pax_buf_t* pax_buffer;
 extern pax_buf_t border;
 
 char* create_savefile_path(const char* rom_filename, const char* ext);

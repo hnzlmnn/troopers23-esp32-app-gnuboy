@@ -55,3 +55,6 @@
 [submodule "components/spi-st77xx"]
 	path = components/spi-st77xx
 	url = git@github.com:badgeteam/eps32-component-spi-st77xx.git
+[submodule "components/keyboard"]
+	path = components/keyboard
+	url = git@github.com:badgeteam/troopers24-keyboard.git
